@@ -1,0 +1,87 @@
+  stages:
+    - cleanup
+    - generate-image-version
+    - build
+    - deploy
+
+  variables:
+    IMAGE_NAME: backend
+    CONTAINER_NAME: backend
+    ARTIFACT_PATH: "./image.tar"
+    HOST_PORT: "8002"
+    HTTP_PROXY: "http://10.0.0.7:3128"
+    MEMORY: '256m'
+    MEMORY_SWAP: '256m'
+    MCP_CONFIG: "./mcp_config.json"
+    ADDITIONAL_CORS: 'https://chat.team01-track06-city-lct2025.ru'
+    NO_PROXY: "localhost,127.0.0.1,10.0.0.0/8,172.17.0.0/12"
+    LDAP_SERVER: "10.0.0.100"
+    LDAP_PORT: "1389"
+    POSTGRESQL_URL: "postgresql://alex:Hfrtnf99@10.0.0.10:5432/chat"
+
+  cleanup:
+    stage: cleanup
+    script:
+      - |
+        # Stop and remove container if it exists
+        if docker ps -a --filter "name=$CONTAINER_NAME" | grep -q $CONTAINER_NAME; then
+          docker stop $CONTAINER_NAME || true
+          docker rm $CONTAINER_NAME || true
+        fi
+        
+        # Remove all images for this project
+        docker images --filter reference="$IMAGE_NAME*" -q | while read image_id; do
+          echo "Removing image: $image_id"
+          docker rmi -f $image_id || true
+        done
+        
+        # Clean up dangling images
+        docker image prune -f
+    tags:
+      - apps
+    # Run cleanup even if previous jobs failed
+    when: always
+
+  generate-image-version:
+    stage: generate-image-version
+    script:
+      - echo "IMAGE_TAG=$(date +%Y%m%d-%H%M%S)-${CI_COMMIT_SHORT_SHA}" > image_version.txt
+    artifacts:
+      paths:
+        - image_version.txt
+    tags:
+      - apps
+
+  build:
+    stage: build
+    script:
+      - source image_version.txt
+      - docker build --build-arg API_KEY=$API_KEY --build-arg BASE_URL=$BASE_URL --build-arg FOLDER=$FOLDER --build-arg MODEL_NAME=$MODEL_NAME --build-arg MCP_CONFIG=$MCP_CONFIG --build-arg LDAP_SERVER=$LDAP_SERVER --build-arg LDAP_PORT=$LDAP_PORT --build-arg POSTGRESQL_URL=$POSTGRESQL_URL --build-arg HTTP_PROXY=$HTTP_PROXY --build-arg HTTPS_PROXY=$HTTP_PROXY --build-arg NO_PROXY=$NO_PROXY -t lctregistry.cr.cloud.ru/$IMAGE_NAME:$IMAGE_TAG .
+      - docker push lctregistry.cr.cloud.ru/$IMAGE_NAME:$IMAGE_TAG
+    dependencies:
+      - generate-image-version
+    tags:
+      - apps
+
+  deploy:
+    stage: deploy
+    script:
+      - source image_version.txt
+      - |
+        # Stop and remove container if it exists
+        if docker ps -a --filter "name=$CONTAINER_NAME" | grep -q $CONTAINER_NAME; then
+          docker stop $CONTAINER_NAME || true
+          docker rm $CONTAINER_NAME || true
+        fi
+        
+        # Remove all images for this project
+        docker images --filter reference="$IMAGE_NAME*" -q | while read image_id; do
+          echo "Removing image: $image_id"
+          docker rmi -f $image_id || true
+        done
+      - docker run -d -e ADDITIONAL_CORS=$ADDITIONAL_CORS -e HTTP_PROXY=$HTTP_PROXY -e HTTPS_PROXY=$HTTP_PROXY -e NO_PROXY=$NO_PROXY --name $CONTAINER_NAME --memory $MEMORY --memory-swap $MEMORY_SWAP -p $HOST_PORT:8080 lctregistry.cr.cloud.ru/$IMAGE_NAME:$IMAGE_TAG
+    dependencies:
+      - build
+      - generate-image-version
+    tags:
+      - main
