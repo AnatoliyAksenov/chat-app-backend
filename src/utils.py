@@ -4,6 +4,7 @@ import json
 from pydantic import ValidationError
 
 from langchain_core.prompts import PromptTemplate
+from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -19,16 +20,16 @@ from psycopg.rows import dict_row
 from src.model import AppConfig
 from src.prompts import main as main_prompt
 
-from langfuse import Langfuse
-from langfuse.langchain import CallbackHandler
+# from langfuse import Langfuse
+# from langfuse.langchain import CallbackHandler
 
-langfuse = Langfuse(
-    public_key="pk-lf-b250746b-10e2-49f6-aca0-af44c4a161b9",
-    secret_key="sk-lf-067b3500-1e8e-4b0a-81c8-a1ffeb49964b",
-    host="https://langfuse.it-brew-lct2025.ru"
-)
+# langfuse = Langfuse(
+#     public_key="pk-lf-b250746b-10e2-49f6-aca0-af44c4a161b9",
+#     secret_key="sk-lf-067b3500-1e8e-4b0a-81c8-a1ffeb49964b",
+#     host="https://langfuse.it-brew-lct2025.ru"
+# )
 
-langfuse_handler = CallbackHandler()
+# langfuse_handler = CallbackHandler()
 
 _config: dict = None
 
@@ -85,11 +86,13 @@ class SupervisorAgent():
         config = {
             "configurable": {"thread_id": str(idx)}, 
             "recursion_limit": 50, 
-            "callbacks": [langfuse_handler]
+            #"callbacks": [langfuse_handler]
             }
         message_input = {"messages": [{"role": "user", "content": message}]}
 
         return await self.agent.ainvoke(message_input,config=config)
+
+    
     
 _agent = None    
 

@@ -81,6 +81,29 @@ async def read_users_me(
         media_type="text/event-stream"  
     )
 
+
+@router.post("/api/v1/system_message")
+async def read_users_me(
+    item: MessageRequest,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    agent: SupervisorAgent = Depends(get_agent)
+):
+    
+    user_message_id = str(uuid1())
+    agent_message_id = str(uuid1())
+    conv_id = item.conversationId
+    agent_id = item.agentId
+    content = item.content
+    user_id = current_user.get('username')
+
+    message = 'Это системное сообщение. Пользователь не видит ответ на него. Отвечай, просто, `OK`. Сообщение:\n' + content
+    result = await agent.ainvoke(message, idx=conv_id)
+
+    return Response('{"result": "Success."}' if result else '{"result": "Success."}', status_code=200)
+
+
+
 @router.get("/api/v1/conversations")
 async def conversations(
     current_user: dict = Depends(get_current_user),
@@ -89,7 +112,7 @@ async def conversations(
     """
     Returns conversation json with all conversatino messages
     """
-    user_id = current_user.get('username')
-    conversatins = await get_conversations(aconn=aconn, user_id=user_id)
+    # user_id = current_user.get('username')
+    # conversatins = await get_conversations(aconn=aconn, user_id=user_id)
 
     return Response('Under construction', 404)
