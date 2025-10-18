@@ -1,30 +1,22 @@
-from uuid import uuid1
+import asyncio
+import io
+import json
+import uuid
 from datetime import datetime
-from typing import Dict, AsyncGenerator
+from typing import AsyncGenerator, Dict, Optional
+from uuid import uuid1
 
-from fastapi import APIRouter, Depends, Request, Response
-from fastapi.responses import StreamingResponse
-
+import docx
+import fitz
+import pandas as pd
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi.responses import JSONResponse, StreamingResponse
 from psycopg import AsyncConnection
 
+from src.api.db_model import get_conversations
 from src.auth import get_current_user
 from src.model import MessageRequest
-from src.utils import get_agent, get_db_conn
-from src.utils import SupervisorAgent
-
-from src.api.db_model import get_conversations
-
-import asyncio
-import json
-
-import io
-import uuid
-from fastapi import UploadFile, File, HTTPException, Form
-from fastapi.responses import JSONResponse
-import fitz  
-import docx
-import pandas as pd
-from typing import Optional
+from src.utils import SupervisorAgent, get_agent, get_db_conn
 
 router = APIRouter()
 
